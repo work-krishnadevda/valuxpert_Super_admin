@@ -86,7 +86,7 @@ export function LoginView({ onLogin }: LoginViewProps) {
               <input
                 type="password"
                 value={password}
-                placeholder="Please enter super admin password"
+                placeholder="Please enter super admin passwords"
                 onChange={(event) => setPassword(event.target.value)}
                 className="w-full bg-butter border-2 border-pine/20 rounded-xl py-3 pl-12 pr-4 text-pine font-bold outline-none focus:border-pine transition-colors"
                 required

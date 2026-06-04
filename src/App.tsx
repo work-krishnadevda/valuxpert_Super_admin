@@ -12,11 +12,13 @@ import { AuditView } from './views/AuditView';
 import { LoginView } from './views/LoginView';
 import { authStore } from './services/superAdminApi';
 import { BillingView } from './views/BillingView';
+import { ConfirmDialog } from './components/ConfirmDialog';
 
 export default function App() {
   const [currentView, setCurrentView] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(Boolean(authStore.getToken()));
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
 
   if (!isAuthenticated) {
     return <LoginView onLogin={() => setIsAuthenticated(true)} />;
@@ -59,10 +61,7 @@ export default function App() {
         onNavigate={(view) => { setCurrentView(view); setIsSidebarOpen(false); }} 
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
-        onLogout={() => {
-          authStore.clear();
-          setIsAuthenticated(false);
-        }}
+        onLogout={() => setIsLogoutConfirmOpen(true)}
       />
       
       <main className="flex-1 flex flex-col min-w-0 max-h-screen overflow-hidden">
@@ -98,6 +97,20 @@ export default function App() {
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
+
+      <ConfirmDialog
+        open={isLogoutConfirmOpen}
+        title="Logout?"
+        message="Are you sure you want to logout from Super Admin?"
+        confirmLabel="Logout"
+        danger
+        onCancel={() => setIsLogoutConfirmOpen(false)}
+        onConfirm={() => {
+          authStore.clear();
+          setIsAuthenticated(false);
+          setIsLogoutConfirmOpen(false);
+        }}
+      />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ApiCompany } from '../types';
 import { superAdminApi } from '../services/superAdminApi';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 export function SettingsView() {
   const [companies, setCompanies] = useState<ApiCompany[]>([]);
@@ -14,6 +15,8 @@ export function SettingsView() {
     notification_settings: { email_enabled: true, sms_enabled: false },
   });
   const [message, setMessage] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   useEffect(() => {
     superAdminApi.companies().then((companyList) => {
@@ -55,9 +58,19 @@ export function SettingsView() {
   const saveSettings = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!selectedCompanyId) return;
+    setIsConfirmOpen(true);
+  };
+
+  const confirmSaveSettings = async () => {
+    if (!selectedCompanyId) return;
+    setSaving(true);
     await superAdminApi.updateSettings(selectedCompanyId, settings);
     setMessage('Tenant settings saved successfully.');
+    setIsConfirmOpen(false);
+    setSaving(false);
   };
+
+  const selectedCompany = companies.find((company) => company._id === selectedCompanyId);
 
   return (
     <div className="w-full max-w-4xl">
@@ -117,10 +130,20 @@ export function SettingsView() {
             </div>
           </div>
           <div className="pt-6 border-t border-pine/10">
-            <button type="submit" className="px-6 py-3 bg-pine text-butter font-bold rounded-xl hover:bg-pine/90 transition-colors shadow-md cursor-pointer inline-block">Save Settings</button>
+            <button type="submit" disabled={saving} className="px-6 py-3 bg-pine text-butter font-bold rounded-xl hover:bg-pine/90 transition-colors shadow-md cursor-pointer inline-block disabled:opacity-60">{saving ? 'Saving...' : 'Save Settings'}</button>
           </div>
         </form>
       </div>
+
+      <ConfirmDialog
+        open={isConfirmOpen}
+        title="Save tenant settings?"
+        message={`Are you sure you want to update settings for ${selectedCompany?.name || 'this company'}?`}
+        confirmLabel="Save Settings"
+        loading={saving}
+        onCancel={() => setIsConfirmOpen(false)}
+        onConfirm={confirmSaveSettings}
+      />
     </div>
   );
 }

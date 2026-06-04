@@ -7,8 +7,8 @@ interface LoginViewProps {
 }
 
 export function LoginView({ onLogin }: LoginViewProps) {
-  const [email, setEmail] = useState('superadmin@valuxpert.com');
-  const [password, setPassword] = useState('ChangeMe@123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -33,15 +33,23 @@ export function LoginView({ onLogin }: LoginViewProps) {
   };
 
   return (
-    <div className="min-h-screen bg-pine flex items-center justify-center p-4">
+    <div
+  className="min-h-screen flex items-center justify-center p-4"
+  style={{
+    backgroundImage: `
+      linear-gradient(rgba(0,0,0,0.15), rgba(0,0,0,0.15)),
+      url('/login-bg-image.png')
+    `,
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat',
+  }}
+>
       <div className="w-full max-w-md bg-butter-light border-2 border-butter/30 rounded-[2rem] shadow-2xl p-8">
         <div className="flex items-center gap-4 mb-8">
-          <div className="h-14 w-14 rounded-2xl bg-pine text-butter flex items-center justify-center font-black text-2xl">
-            V
-          </div>
+         <img src="/logo.png" alt="Valuxpert Logo" className="w-25" />
           <div>
-            <h1 className="text-3xl font-black text-pine leading-tight">Valuxpert</h1>
-            <p className="text-pine/60 font-bold">Super Admin Login</p>
+            <h1 className="text-4xl font-black text-pine leading-tight mt-6 -pl-5">Valuxpert</h1> 
           </div>
         </div>
 
@@ -62,6 +70,7 @@ export function LoginView({ onLogin }: LoginViewProps) {
                 type="email"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
+                placeholder="Please enter super admin email"
                 className="w-full bg-butter border-2 border-pine/20 rounded-xl py-3 pl-12 pr-4 text-pine font-bold outline-none focus:border-pine transition-colors"
                 required
               />
@@ -77,6 +86,7 @@ export function LoginView({ onLogin }: LoginViewProps) {
               <input
                 type="password"
                 value={password}
+                placeholder="Please enter super admin password"
                 onChange={(event) => setPassword(event.target.value)}
                 className="w-full bg-butter border-2 border-pine/20 rounded-xl py-3 pl-12 pr-4 text-pine font-bold outline-none focus:border-pine transition-colors"
                 required
@@ -93,8 +103,7 @@ export function LoginView({ onLogin }: LoginViewProps) {
           </button>
         </form>
 
-        <p className="mt-5 text-xs text-pine/55 font-bold leading-relaxed">
-          API: {import.meta.env.VITE_API_BASE_URL || 'http://localhost:3007/api'}
+        <p className="mt-5 text-xs text-pine/55 font-bold leading-relaxed"> 
         </p>
       </div>
     </div>

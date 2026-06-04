@@ -6,9 +6,10 @@ interface SidebarProps {
   onNavigate: (view: string) => void;
   isOpen: boolean;
   onClose: () => void;
+  onLogout: () => void;
 }
 
-export function Sidebar({ currentView, onNavigate, isOpen, onClose }: SidebarProps) {
+export function Sidebar({ currentView, onNavigate, isOpen, onClose, onLogout }: SidebarProps) {
   const navItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'tenants', label: 'Tenants', icon: Building2 },
@@ -63,7 +64,7 @@ export function Sidebar({ currentView, onNavigate, isOpen, onClose }: SidebarPro
 
       <div className="pt-4 mt-auto">
         <button 
-          onClick={() => alert("Sign out would trigger here!")}
+          onClick={onLogout}
           className="w-full flex items-center gap-3 px-4 py-3 rounded-full text-sm font-bold text-pine hover:bg-pine/5 transition-colors border-2 border-transparent hover:border-pine/10 cursor-pointer"
         >
           <LogOut size={18} />

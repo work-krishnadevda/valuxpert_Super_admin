@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Check, Save } from 'lucide-react';
 import type { ApiPlan } from '../types';
 import { superAdminApi } from '../services/superAdminApi';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 export function SubscriptionsView() {
   const [plans, setPlans] = useState<ApiPlan[]>([]);
@@ -9,6 +10,8 @@ export function SubscriptionsView() {
   const [activeCounts, setActiveCounts] = useState<Record<string, number>>({});
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   const loadData = async () => {
     setLoading(true);
@@ -35,9 +38,17 @@ export function SubscriptionsView() {
   const savePlan = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!editingPlan) return;
+    setIsConfirmOpen(true);
+  };
+
+  const confirmSavePlan = async () => {
+    if (!editingPlan) return;
+    setSaving(true);
     await superAdminApi.savePlan(editingPlan.key, editingPlan);
     setEditingPlan(null);
+    setIsConfirmOpen(false);
     await loadData();
+    setSaving(false);
   };
 
   return (
@@ -86,11 +97,21 @@ export function SubscriptionsView() {
             <textarea value={(editingPlan.allowed_modules || []).join(', ')} onChange={(event) => setEditingPlan({ ...editingPlan, allowed_modules: event.target.value.split(',').map((item) => item.trim()).filter(Boolean) })} rows={3} className="w-full bg-butter border-2 border-pine/20 rounded-xl py-3 px-4 text-pine font-bold outline-none focus:border-pine" placeholder="Modules comma separated" />
             <div className="flex gap-3">
               <button type="button" onClick={() => setEditingPlan(null)} className="flex-1 px-4 py-3 border-2 border-pine/20 text-pine font-bold rounded-xl hover:bg-pine/5 transition-colors">Cancel</button>
-              <button type="submit" className="flex-1 px-4 py-3 bg-pine text-butter font-bold rounded-xl hover:bg-pine-light transition-colors flex items-center justify-center gap-2"><Save size={18} /> Save Plan</button>
+              <button type="submit" disabled={saving} className="flex-1 px-4 py-3 bg-pine text-butter font-bold rounded-xl hover:bg-pine-light transition-colors flex items-center justify-center gap-2 disabled:opacity-60"><Save size={18} /> {saving ? 'Saving...' : 'Save Plan'}</button>
             </div>
           </form>
         </div>
       )}
+
+      <ConfirmDialog
+        open={isConfirmOpen}
+        title="Save plan changes?"
+        message={`Are you sure you want to update ${editingPlan?.name || 'this plan'}?`}
+        confirmLabel="Save Plan"
+        loading={saving}
+        onCancel={() => setIsConfirmOpen(false)}
+        onConfirm={confirmSavePlan}
+      />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Plus, Search, MoreVertical, Building2, ShieldAlert, CheckCircle2, X } from 'lucide-react';
+import { toast } from 'react-toastify';
 import type { Tenant } from '../types';
 import { cn } from '../utils';
 
@@ -159,7 +160,7 @@ export function TenantListView() {
                         className="absolute right-6 top-12 md:top-14 mt-1 w-48 bg-butter border-2 border-pine/10 rounded-xl shadow-lg z-20 py-2 flex flex-col overflow-hidden"
                       >
                         <button 
-                          onClick={() => { alert('Edit flow triggered!'); setActiveDropdownId(null); }}
+                          onClick={() => { toast.info('Edit flow triggered!'); setActiveDropdownId(null); }}
                           className="w-full text-left px-4 py-2.5 hover:bg-pine/10 text-pine font-semibold text-sm cursor-pointer transition-colors"
                         >
                           Edit details

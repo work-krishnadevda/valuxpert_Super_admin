@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ApiCompany, ApiFeature } from '../types';
 import { superAdminApi } from '../services/superAdminApi';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 export function FeaturesView() {
   const [companies, setCompanies] = useState<ApiCompany[]>([]);
@@ -9,6 +10,7 @@ export function FeaturesView() {
   const [enabledFeatures, setEnabledFeatures] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   useEffect(() => {
     Promise.all([superAdminApi.companies(), superAdminApi.features()]).then(([companyList, featureList]) => {
@@ -38,7 +40,12 @@ export function FeaturesView() {
     );
   };
 
-  const saveFeatures = async () => {
+  const saveFeatures = () => {
+    if (!selectedCompanyId) return;
+    setIsConfirmOpen(true);
+  };
+
+  const confirmSaveFeatures = async () => {
     if (!selectedCompanyId) return;
     setSaving(true);
     setMessage('');
@@ -49,6 +56,7 @@ export function FeaturesView() {
       ),
     );
     setMessage('Feature flags saved successfully.');
+    setIsConfirmOpen(false);
     setSaving(false);
   };
 
@@ -91,6 +99,16 @@ export function FeaturesView() {
       <button onClick={saveFeatures} disabled={saving || !selectedCompanyId} className="mt-5 px-6 py-3 bg-pine text-butter font-bold rounded-xl hover:bg-pine-light transition-colors shadow-md cursor-pointer disabled:opacity-60">
         {saving ? 'Saving...' : 'Save Feature Flags'}
       </button>
+
+      <ConfirmDialog
+        open={isConfirmOpen}
+        title="Save feature flags?"
+        message={`Are you sure you want to update feature access for ${selectedCompany?.name || 'this company'}?`}
+        confirmLabel="Save Features"
+        loading={saving}
+        onCancel={() => setIsConfirmOpen(false)}
+        onConfirm={confirmSaveFeatures}
+      />
     </div>
   );
 }

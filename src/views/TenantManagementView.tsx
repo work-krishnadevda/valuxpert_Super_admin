@@ -3,6 +3,7 @@ import { CheckCircle2, MoreVertical, Plus, Search, ShieldAlert, Trash2, X } from
 import type { ApiCompany, ApiFeature, ApiPlan } from '../types';
 import { superAdminApi } from '../services/superAdminApi';
 import { cn } from '../utils';
+import { ConfirmDialog } from '../components/ConfirmDialog';
 
 const emptyForm = {
   name: '',
@@ -18,6 +19,14 @@ const emptyForm = {
   features: ['hrms', 'case_management'],
 };
 
+type ConfirmState = {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  danger?: boolean;
+  onConfirm: () => Promise<void> | void;
+};
+
 export function TenantManagementView() {
   const [companies, setCompanies] = useState<ApiCompany[]>([]);
   const [plans, setPlans] = useState<ApiPlan[]>([]);
@@ -30,6 +39,7 @@ export function TenantManagementView() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
 
   const loadData = async () => {
     setLoading(true);
@@ -88,8 +98,7 @@ export function TenantManagementView() {
     setActiveDropdownId(null);
   };
 
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault();
+  const saveCompany = async () => {
     setSaving(true);
     setError('');
 
@@ -114,6 +123,18 @@ export function TenantManagementView() {
     }
   };
 
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    setConfirmState({
+      title: editingCompany ? 'Update company?' : 'Create company?',
+      message: editingCompany
+        ? `Are you sure you want to update ${form.name || editingCompany.name}?`
+        : `Are you sure you want to create ${form.name || 'this company'}?`,
+      confirmLabel: editingCompany ? 'Update' : 'Create',
+      onConfirm: saveCompany,
+    });
+  };
+
   const toggleFeature = (featureKey: string) => {
     setForm((current) => ({
       ...current,
@@ -123,21 +144,52 @@ export function TenantManagementView() {
     }));
   };
 
-  const changeStatus = async (company: ApiCompany) => {
-    if (company.status === 'suspended') {
-      await superAdminApi.activateCompany(company._id);
-    } else {
-      await superAdminApi.suspendCompany(company._id);
-    }
-    setActiveDropdownId(null);
-    await loadData();
+  const changeStatus = (company: ApiCompany) => {
+    const isSuspended = company.status === 'suspended';
+    setConfirmState({
+      title: isSuspended ? 'Reactivate company?' : 'Suspend company?',
+      message: isSuspended
+        ? `Are you sure you want to reactivate ${company.name}?`
+        : `Are you sure you want to suspend access for ${company.name}?`,
+      confirmLabel: isSuspended ? 'Reactivate' : 'Suspend',
+      danger: !isSuspended,
+      onConfirm: async () => {
+        if (isSuspended) {
+          await superAdminApi.activateCompany(company._id);
+        } else {
+          await superAdminApi.suspendCompany(company._id);
+        }
+        setActiveDropdownId(null);
+        await loadData();
+      },
+    });
   };
 
-  const deleteCompany = async (company: ApiCompany) => {
-    if (!window.confirm(`Soft delete ${company.name}?`)) return;
-    await superAdminApi.deleteCompany(company._id);
-    setActiveDropdownId(null);
-    await loadData();
+  const deleteCompany = (company: ApiCompany) => {
+    setConfirmState({
+      title: 'Soft delete company?',
+      message: `Are you sure you want to soft delete ${company.name}? This company will no longer be active.`,
+      confirmLabel: 'Soft delete',
+      danger: true,
+      onConfirm: async () => {
+        await superAdminApi.deleteCompany(company._id);
+        setActiveDropdownId(null);
+        await loadData();
+      },
+    });
+  };
+
+  const confirmAction = async () => {
+    if (!confirmState) return;
+    try {
+      setSaving(true);
+      await confirmState.onConfirm();
+      setConfirmState(null);
+    } catch (err: any) {
+      setError(err?.message || 'Action failed.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -347,6 +399,17 @@ export function TenantManagementView() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(confirmState)}
+        title={confirmState?.title || ''}
+        message={confirmState?.message || ''}
+        confirmLabel={confirmState?.confirmLabel}
+        danger={confirmState?.danger}
+        loading={saving}
+        onCancel={() => setConfirmState(null)}
+        onConfirm={confirmAction}
+      />
     </div>
   );
 }

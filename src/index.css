@@ -1,0 +1,19 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-butter: #ffefb3;
+  --color-butter-dark: #e6d7a1;
+  --color-butter-light: #fff8d6;
+  --color-pine: #013e37;
+  --color-pine-light: #075247;
+  --color-sage: #8ab097;
+  
+  --font-sans: "Nunito", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  body {
+    @apply bg-butter text-pine font-sans antialiased;
+  }
+}

@@ -24,7 +24,7 @@ export function LoginView({ onLogin }: LoginViewProps) {
       const msg = err?.message || '';
       setError(
         msg.includes('404') || msg.includes('Not Found')
-          ? 'The API is being called on the wrong port. Start the backend with npm run start:dev, set VITE_API_BASE_URL=http://localhost:3007/api, and open the UI at http://localhost:3001.'
+          ? 'The API URL is not reachable. Check VITE_API_BASE_URL in the frontend deployment settings and redeploy the Super Admin app.'
           : msg || 'Login failed. Please check the backend API and SUPER_ADMIN environment variables.',
       );
     } finally {

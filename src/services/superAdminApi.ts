@@ -1,4 +1,5 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:3007/api';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || 'https://karmyug-apple-backend.onrender.com/api';
 const TOKEN_KEY = 'valuxpert_superadmin_token';
 
 type RequestOptions = RequestInit & {

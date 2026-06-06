@@ -23,7 +23,7 @@ export function Sidebar({ currentView, onNavigate, isOpen, onClose, onLogout }: 
 
   return (
     <div className={cn(
-      "fixed inset-y-0 left-0 z-50 transform bg-butter border-r border-[#8ab097]/40 w-[280px] p-6 transition-transform duration-300 ease-in-out md:relative md:translate-x-0 h-full flex flex-col pt-6 md:pt-10 shrink-0",
+      "fixed inset-y-0 left-0 z-50 transform bg-white border-r border-[#8ab097]/40 w-[280px] p-6 transition-transform duration-300 ease-in-out md:relative md:translate-x-0 h-full flex flex-col pt-6 md:pt-10 shrink-0",
       isOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
     )}>
       <div className="flex items-center justify-between mb-8 md:mb-10 px-2">

@@ -55,7 +55,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-butter text-pine flex w-full relative">
+    <div className="min-h-screen bg-white text-pine flex w-full relative">
       <Sidebar 
         currentView={currentView} 
         onNavigate={(view) => { setCurrentView(view); setIsSidebarOpen(false); }} 
@@ -66,7 +66,7 @@ export default function App() {
       
       <main className="flex-1 flex flex-col min-w-0 max-h-screen overflow-hidden">
         {/* Mobile Header Bar */}
-        <div className="md:hidden flex items-center justify-between p-4 bg-butter border-b border-pine/10 shrink-0">
+        <div className="md:hidden flex items-center justify-between p-4 bg-white border-b border-pine/10 shrink-0">
           <div className="flex items-center gap-2">
             <div className="bg-pine text-butter h-8 w-8 rounded-lg flex items-center justify-center font-bold text-sm shadow-sm">
               V

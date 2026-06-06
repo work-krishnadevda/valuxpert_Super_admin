@@ -2,9 +2,9 @@
 @import "tailwindcss";
 
 @theme {
-  --color-butter: #ffefb3;
-  --color-butter-dark: #e6d7a1;
-  --color-butter-light: #fff8d6;
+  --color-butter: #ffffff;
+  --color-butter-dark: #ffffff;
+  --color-butter-light: #ffffff;
   --color-pine: #013e37;
   --color-pine-light: #075247;
   --color-sage: #8ab097;
@@ -14,6 +14,6 @@
 
 @layer base {
   body {
-    @apply bg-butter text-pine font-sans antialiased;
+    @apply bg-white text-pine font-sans antialiased;
   }
 }

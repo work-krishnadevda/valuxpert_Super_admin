@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, MoreVertical, Plus, Search, ShieldAlert, Trash2, X } from 'lucide-react';
+import { CheckCircle2, MoreVertical, Plus, RotateCcw, Search, ShieldAlert, Trash2, X } from 'lucide-react';
 import type { ApiCompany, ApiFeature, ApiPlan } from '../types';
 import { superAdminApi } from '../services/superAdminApi';
 import { cn } from '../utils';
@@ -14,10 +14,12 @@ const emptyForm = {
   admin_personal_email: '',
   admin_password: '',
   admin_mobile: '',
-  tenant_login_url: 'http://localhost:3008',
+  tenant_login_url: 'https://valuxpert.vercel.app',
   plan: 'starter',
   features: ['hrms', 'case_management'],
 };
+
+const CORE_FEATURE_KEY = 'case_management';
 
 type ConfirmState = {
   title: string;
@@ -27,7 +29,39 @@ type ConfirmState = {
   onConfirm: () => Promise<void> | void;
 };
 
-export function TenantManagementView() {
+type TenantViewMode = 'all' | 'suspended' | 'trash';
+
+type DeleteReasonState = {
+  company: ApiCompany;
+  reason: string;
+};
+
+function TenantTableSkeleton() {
+  return (
+    <tbody className="divide-y divide-pine/5">
+      {Array.from({ length: 5 }).map((_, index) => (
+        <tr key={index} className="animate-pulse">
+          <td className="p-4 md:p-6">
+            <div className="flex items-center gap-3 md:gap-4">
+              <div className="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-pine/10" />
+              <div className="space-y-2">
+                <div className="h-4 w-40 rounded bg-pine/10" />
+                <div className="h-3 w-28 rounded bg-pine/10" />
+                <div className="h-3 w-36 rounded bg-pine/10" />
+              </div>
+            </div>
+          </td>
+          <td className="p-4 md:p-6"><div className="h-8 w-28 rounded-full bg-pine/10" /></td>
+          <td className="p-4 md:p-6"><div className="h-4 w-36 rounded bg-pine/10" /></td>
+          <td className="p-4 md:p-6"><div className="h-8 w-24 rounded-full bg-pine/10" /></td>
+          <td className="p-4 md:p-6"><div className="ml-auto h-8 w-8 rounded-full bg-pine/10" /></td>
+        </tr>
+      ))}
+    </tbody>
+  );
+}
+
+export function TenantManagementView({ mode = 'all' }: { mode?: TenantViewMode }) {
   const [companies, setCompanies] = useState<ApiCompany[]>([]);
   const [plans, setPlans] = useState<ApiPlan[]>([]);
   const [features, setFeatures] = useState<ApiFeature[]>([]);
@@ -39,14 +73,40 @@ export function TenantManagementView() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
+  const [deleteReasonState, setDeleteReasonState] = useState<DeleteReasonState | null>(null);
+
+  const pageMeta = {
+    all: {
+      title: 'Tenants Management',
+      subtitle: 'Manage companies, subscriptions, feature access, users, and tenant setup from one place.',
+      empty: 'No tenants found.',
+    },
+    suspended: {
+      title: 'Suspended Tenants',
+      subtitle: 'Review suspended tenant companies, reactivate access, or move them to trash with a reason.',
+      empty: 'No suspended tenants found.',
+    },
+    trash: {
+      title: 'Tenant Trash',
+      subtitle: 'Restore soft-deleted tenant companies. Restored tenants remain suspended until you reactivate them.',
+      empty: 'No trashed tenants found.',
+    },
+  }[mode];
 
   const loadData = async () => {
     setLoading(true);
     setError('');
     try {
+      const loadCompanies =
+        mode === 'trash'
+          ? superAdminApi.trashedCompanies()
+          : mode === 'suspended'
+            ? superAdminApi.suspendedCompanies()
+            : superAdminApi.companies();
       const [companyList, planList, featureList] = await Promise.all([
-        superAdminApi.companies(),
+        loadCompanies,
         superAdminApi.plans(),
         superAdminApi.features(),
       ]);
@@ -62,7 +122,7 @@ export function TenantManagementView() {
 
   useEffect(() => {
     loadData();
-  }, []);
+  }, [mode]);
 
   const filteredCompanies = useMemo(() => {
     const value = search.toLowerCase();
@@ -76,6 +136,8 @@ export function TenantManagementView() {
   const openCreate = () => {
     setEditingCompany(null);
     setForm(emptyForm);
+    setFormErrors({});
+    setError('');
     setIsModalOpen(true);
   };
 
@@ -92,10 +154,81 @@ export function TenantManagementView() {
       admin_mobile: company.admin_contact?.mobile || '',
       tenant_login_url: company.admin_contact?.login_url || 'http://localhost:3008',
       plan: company.subscription?.plan_key || 'starter',
-      features: company.features?.length ? company.features : [],
+      features: company.features?.includes(CORE_FEATURE_KEY)
+        ? company.features
+        : [...(company.features || []), CORE_FEATURE_KEY],
     });
+    setFormErrors({});
+    setError('');
     setIsModalOpen(true);
     setActiveDropdownId(null);
+  };
+
+  const getFieldError = (field: string) => formErrors[field];
+
+  const requiredLabel = (label: string) => (
+    <>
+      {label} <span className="text-red-600">*</span>
+    </>
+  );
+
+  const updateField = (field: string, value: string) => {
+    setForm((current) => ({ ...current, [field]: value }));
+    setFormErrors((current) => {
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
+  };
+
+  const updateMobile = (value: string) => {
+    updateField('admin_mobile', value.replace(/\D/g, '').slice(0, 10));
+  };
+
+  const isCoreFeature = (feature: ApiFeature) =>
+    feature.key === CORE_FEATURE_KEY || feature.name?.toLowerCase().includes('case management');
+
+  const validateForm = () => {
+    const errors: Record<string, string> = {};
+    const requiredFields = [
+      ['name', 'Company Name is required.'],
+      ['admin_name', 'Admin Name is required.'],
+      ['admin_email', 'User Login / Email Address is required.'],
+      ['admin_password', 'Login Password is required.'],
+      ['admin_personal_email', 'Personal Email is required.'],
+      ['admin_mobile', 'Mobile Number is required.'],
+      ['tenant_login_url', 'Tenant Software URL is required.'],
+    ];
+
+    requiredFields.forEach(([field, message]) => {
+      if (!String((form as any)[field] || '').trim()) {
+        errors[field] = message;
+      }
+    });
+
+    if (form.admin_mobile && !/^\d{10}$/.test(form.admin_mobile)) {
+      errors.admin_mobile = 'Mobile Number must be exactly 10 digits.';
+    }
+
+    if (form.admin_email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.admin_email)) {
+      errors.admin_email = 'Please enter a valid User Login / Email Address.';
+    }
+
+    if (
+      form.admin_personal_email &&
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.admin_personal_email)
+    ) {
+      errors.admin_personal_email = 'Please enter a valid Personal Email.';
+    }
+
+    if (!form.features.length) {
+      errors.features = 'Please select at least one feature.';
+    } else if (!form.features.includes(CORE_FEATURE_KEY)) {
+      errors.features = 'Case Management is mandatory and cannot be removed.';
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const saveCompany = async () => {
@@ -125,6 +258,9 @@ export function TenantManagementView() {
 
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault();
+    if (!validateForm()) {
+      return;
+    }
     setConfirmState({
       title: editingCompany ? 'Update company?' : 'Create company?',
       message: editingCompany
@@ -136,12 +272,25 @@ export function TenantManagementView() {
   };
 
   const toggleFeature = (featureKey: string) => {
+    if (featureKey === CORE_FEATURE_KEY) {
+      setFormErrors((current) => ({
+        ...current,
+        features: 'Case Management is mandatory and cannot be removed.',
+      }));
+      return;
+    }
+
     setForm((current) => ({
       ...current,
       features: current.features.includes(featureKey)
         ? current.features.filter((feature) => feature !== featureKey)
         : [...current.features, featureKey],
     }));
+    setFormErrors((current) => {
+      const next = { ...current };
+      delete next.features;
+      return next;
+    });
   };
 
   const changeStatus = (company: ApiCompany) => {
@@ -166,13 +315,42 @@ export function TenantManagementView() {
   };
 
   const deleteCompany = (company: ApiCompany) => {
+    if (company.status !== 'suspended') {
+      setError('Company must be suspended before it can be deleted.');
+      setActiveDropdownId(null);
+      return;
+    }
+    setDeleteReasonState({ company, reason: '' });
+    setActiveDropdownId(null);
+  };
+
+  const confirmDeleteCompany = async () => {
+    if (!deleteReasonState) return;
+    const reason = deleteReasonState.reason.trim();
+    if (!reason) {
+      setError('Delete reason is required.');
+      return;
+    }
+    try {
+      setSaving(true);
+      setError('');
+      await superAdminApi.deleteCompany(deleteReasonState.company._id, reason);
+      setDeleteReasonState(null);
+      await loadData();
+    } catch (err: any) {
+      setError(err?.message || 'Unable to delete company.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const restoreCompany = (company: ApiCompany) => {
     setConfirmState({
-      title: 'Soft delete company?',
-      message: `Are you sure you want to soft delete ${company.name}? This company will no longer be active.`,
-      confirmLabel: 'Soft delete',
-      danger: true,
+      title: 'Restore company?',
+      message: `Are you sure you want to restore ${company.name}? It will remain suspended until you reactivate it.`,
+      confirmLabel: 'Restore',
       onConfirm: async () => {
-        await superAdminApi.deleteCompany(company._id);
+        await superAdminApi.restoreCompany(company._id);
         setActiveDropdownId(null);
         await loadData();
       },
@@ -196,17 +374,18 @@ export function TenantManagementView() {
     <div className="w-full flex flex-col">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 md:mb-8">
         <div>
-          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-1 md:mb-2 text-pine">Tenants Management</h1>
-          <p className="text-pine/70 font-medium text-base md:text-lg">Manage companies, subscriptions, feature access, users, and tenant setup from one place.</p>
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight mb-1 md:mb-2 text-pine">{pageMeta.title}</h1>
+          <p className="text-pine/70 font-medium text-base md:text-lg">{pageMeta.subtitle}</p>
         </div>
-        <button onClick={openCreate} className="bg-pine text-butter hover:bg-pine/90 transition-colors px-5 md:px-6 py-3 rounded-full font-bold flex items-center justify-center gap-2 shadow-sm whitespace-nowrap cursor-pointer">
-          <Plus strokeWidth={2.5} size={20} />
-          Create Company
-        </button>
+        {mode === 'all' && (
+          <button onClick={openCreate} className="bg-pine text-butter hover:bg-pine/90 transition-colors px-5 md:px-6 py-3 rounded-full font-bold flex items-center justify-center gap-2 shadow-sm whitespace-nowrap cursor-pointer">
+            <Plus strokeWidth={2.5} size={20} />
+            Create Company
+          </button>
+        )}
       </div>
 
       {error && <div className="mb-5 rounded-2xl border-2 border-red-200 bg-red-50 px-5 py-4 text-red-700 font-bold">{error}</div>}
-      {loading && <div className="mb-5 rounded-2xl border-2 border-pine/10 bg-butter-light px-5 py-4 text-pine/70 font-bold">Loading companies from backend...</div>}
 
       <div className="grid grid-cols-1 gap-6">
         <div className="bg-butter-light border-2 border-pine/10 rounded-2xl md:rounded-[2rem] flex flex-col items-stretch overflow-hidden">
@@ -222,7 +401,7 @@ export function TenantManagementView() {
               />
             </div>
             <div className="text-sm font-bold text-pine/60 shrink-0">
-              Showing {filteredCompanies.length} tenants
+              {loading ? 'Loading tenants...' : `Showing ${filteredCompanies.length} tenants`}
             </div>
           </div>
 
@@ -237,6 +416,9 @@ export function TenantManagementView() {
                   <th className="p-4 md:p-6 font-bold text-right">Actions</th>
                 </tr>
               </thead>
+              {loading ? (
+                <TenantTableSkeleton />
+              ) : (
               <tbody className="divide-y divide-pine/5">
                 {filteredCompanies.map((company) => (
                   <tr key={company._id} className="hover:bg-pine/[0.02] transition-colors group">
@@ -249,6 +431,17 @@ export function TenantManagementView() {
                           <p className="font-bold text-base md:text-lg text-pine leading-tight truncate">{company.name}</p>
                           <p className="text-xs md:text-sm font-mono opacity-60 truncate mt-0.5">{company.tenant_id}</p>
                           <p className="text-xs text-pine/50 font-bold truncate">{company.admin_contact?.email || 'No admin email'}</p>
+                          {mode === 'trash' && (
+                            <div className="mt-2 max-w-xl whitespace-normal rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-xs font-bold text-red-800">
+                              <p>Reason: {company.delete_history?.reason || 'No reason found'}</p>
+                              <p className="mt-1 text-red-700/70">
+                                Deleted by {company.delete_history?.actor_email || 'system'}
+                                {company.delete_history?.deleted_at
+                                  ? ` on ${new Date(company.delete_history.deleted_at).toLocaleString()}`
+                                  : ''}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </td>
@@ -277,20 +470,42 @@ export function TenantManagementView() {
                       </button>
                       {activeDropdownId === company._id && (
                         <div className="absolute right-6 top-14 mt-1 w-52 bg-butter border-2 border-pine/10 rounded-xl shadow-lg z-20 py-2 flex flex-col overflow-hidden">
-                          <button onClick={() => openEdit(company)} className="w-full text-left px-4 py-2.5 hover:bg-pine/10 text-pine font-semibold text-sm cursor-pointer transition-colors">Edit details</button>
-                          <button onClick={() => changeStatus(company)} className="w-full text-left px-4 py-2.5 hover:bg-pine/10 text-pine font-semibold text-sm cursor-pointer transition-colors">
-                            {company.status === 'suspended' ? 'Reactivate access' : 'Suspend access'}
-                          </button>
-                          <div className="h-px bg-pine/10 my-1 w-full" />
-                          <button onClick={() => deleteCompany(company)} className="w-full text-left px-4 py-2.5 hover:bg-[#ffe0e0] text-[#8a2222] font-semibold text-sm cursor-pointer transition-colors flex items-center gap-2">
-                            <Trash2 size={15} /> Soft delete
-                          </button>
+                          {mode === 'trash' ? (
+                            <button onClick={() => restoreCompany(company)} className="w-full text-left px-4 py-2.5 hover:bg-pine/10 text-pine font-semibold text-sm cursor-pointer transition-colors flex items-center gap-2">
+                              <RotateCcw size={15} /> Restore
+                            </button>
+                          ) : (
+                            <>
+                              {mode === 'all' && (
+                                <button onClick={() => openEdit(company)} className="w-full text-left px-4 py-2.5 hover:bg-pine/10 text-pine font-semibold text-sm cursor-pointer transition-colors">Edit details</button>
+                              )}
+                              <button onClick={() => changeStatus(company)} className="w-full text-left px-4 py-2.5 hover:bg-pine/10 text-pine font-semibold text-sm cursor-pointer transition-colors">
+                                {company.status === 'suspended' ? 'Reactivate access' : 'Suspend access'}
+                              </button>
+                              {company.status === 'suspended' && (
+                                <>
+                                  <div className="h-px bg-pine/10 my-1 w-full" />
+                                  <button onClick={() => deleteCompany(company)} className="w-full text-left px-4 py-2.5 hover:bg-[#ffe0e0] text-[#8a2222] font-semibold text-sm cursor-pointer transition-colors flex items-center gap-2">
+                                    <Trash2 size={15} /> Move to trash
+                                  </button>
+                                </>
+                              )}
+                            </>
+                          )}
                         </div>
                       )}
                     </td>
                   </tr>
                 ))}
+                {!filteredCompanies.length && (
+                  <tr>
+                    <td className="p-8 text-center text-sm font-bold text-pine/50" colSpan={5}>
+                      {pageMeta.empty}
+                    </td>
+                  </tr>
+                )}
               </tbody>
+              )}
             </table>
           </div>
         </div>
@@ -308,7 +523,7 @@ export function TenantManagementView() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} noValidate className="space-y-5">
               <div>
                 <h3 className="text-lg font-black text-pine mb-3">Company Details</h3>
               </div>
@@ -318,14 +533,22 @@ export function TenantManagementView() {
                   ['display_name', 'Display Name', 'text', false],
                 ].map(([key, label, type, required]) => (
                   <div key={String(key)}>
-                    <label className="block text-xs font-bold text-pine/60 tracking-wider mb-1.5 uppercase">{label}</label>
+                    <label className="block text-xs font-bold text-pine/60 tracking-wider mb-1.5 uppercase">
+                      {required ? requiredLabel(String(label)) : label}
+                    </label>
                     <input
                       required={Boolean(required)}
                       type={String(type)}
                       value={(form as any)[key as string]}
-                      onChange={(event) => setForm({ ...form, [key as string]: event.target.value })}
-                      className="w-full bg-butter border-2 border-pine/20 rounded-xl py-3 px-4 text-pine font-medium outline-none focus:border-pine transition-colors shadow-sm"
+                      onChange={(event) => updateField(key as string, event.target.value)}
+                      className={cn(
+                        "w-full bg-butter border-2 rounded-xl py-3 px-4 text-pine font-medium outline-none focus:border-pine transition-colors shadow-sm",
+                        getFieldError(key as string) ? "border-red-400" : "border-pine/20",
+                      )}
                     />
+                    {getFieldError(key as string) && (
+                      <p className="mt-1 text-xs font-bold text-red-600">{getFieldError(key as string)}</p>
+                    )}
                   </div>
                 ))}
                 <div>
@@ -336,7 +559,7 @@ export function TenantManagementView() {
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-xs font-bold text-pine/60 tracking-wider mb-1.5 uppercase">Description</label>
-                  <textarea value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} rows={3} className="w-full bg-butter border-2 border-pine/20 rounded-xl py-3 px-4 text-pine font-medium outline-none focus:border-pine transition-colors shadow-sm" />
+                  <textarea value={form.description} onChange={(event) => updateField('description', event.target.value)} rows={3} className="w-full bg-butter border-2 border-pine/20 rounded-xl py-3 px-4 text-pine font-medium outline-none focus:border-pine transition-colors shadow-sm" />
                 </div>
               </div>
 
@@ -352,23 +575,38 @@ export function TenantManagementView() {
                 </p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {[
-                    ['admin_name', 'Admin Name', 'text', !editingCompany],
-                    ['admin_email', 'Login Email', 'email', !editingCompany],
-                    ['admin_password', 'Login Password', 'text', false],
-                    ['admin_personal_email', 'Personal Email', 'email', false],
-                    ['admin_mobile', 'Mobile Number', 'text', false],
-                    ['tenant_login_url', 'Tenant Software URL', 'url', false],
+                    ['admin_name', 'Admin Name', 'text', true],
+                    ['admin_email', 'User Login / Email Address', 'email', true],
+                    ['admin_password', 'Login Password', 'text', true],
+                    ['admin_personal_email', 'Personal Email', 'email', true],
+                    ['admin_mobile', 'Mobile Number', 'tel', true],
+                    ['tenant_login_url', 'Tenant Software URL', 'url', true],
                   ].map(([key, label, type, required]) => (
                     <div key={String(key)} className={key === 'tenant_login_url' ? 'md:col-span-2' : ''}>
-                      <label className="block text-xs font-bold text-pine/60 tracking-wider mb-1.5 uppercase">{label}</label>
+                      <label className="block text-xs font-bold text-pine/60 tracking-wider mb-1.5 uppercase">
+                        {required ? requiredLabel(String(label)) : label}
+                      </label>
                       <input
                         required={Boolean(required)}
                         type={String(type)}
                         value={(form as any)[key as string]}
-                        onChange={(event) => setForm({ ...form, [key as string]: event.target.value })}
+                        onChange={(event) =>
+                          key === 'admin_mobile'
+                            ? updateMobile(event.target.value)
+                            : updateField(key as string, event.target.value)
+                        }
+                        inputMode={key === 'admin_mobile' ? 'numeric' : undefined}
+                        maxLength={key === 'admin_mobile' ? 10 : undefined}
+                        pattern={key === 'admin_mobile' ? '\\d{10}' : undefined}
                         placeholder={key === 'tenant_login_url' ? 'Example: http://localhost:3008/login' : undefined}
-                        className="w-full bg-butter border-2 border-pine/20 rounded-xl py-3 px-4 text-pine font-medium outline-none focus:border-pine transition-colors shadow-sm"
+                        className={cn(
+                          "w-full bg-butter border-2 rounded-xl py-3 px-4 text-pine font-medium outline-none focus:border-pine transition-colors shadow-sm",
+                          getFieldError(key as string) ? "border-red-400" : "border-pine/20",
+                        )}
                       />
+                      {getFieldError(key as string) && (
+                        <p className="mt-1 text-xs font-bold text-red-600">{getFieldError(key as string)}</p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -376,13 +614,30 @@ export function TenantManagementView() {
 
               <div className="border-t border-pine/10 pt-5">
                 <h3 className="text-lg font-black text-pine mb-3">Feature Flags</h3>
+                {getFieldError('features') && (
+                  <div className="mb-3 rounded-xl border-2 border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+                    {getFieldError('features')}
+                  </div>
+                )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {features.map((feature) => (
-                    <label key={feature.key} className="flex items-start gap-3 rounded-2xl bg-butter border border-pine/10 p-4 cursor-pointer hover:border-pine/30">
-                      <input type="checkbox" checked={form.features.includes(feature.key)} onChange={() => toggleFeature(feature.key)} className="mt-1" />
+                    <label key={feature.key} className={cn(
+                      "flex items-start gap-3 rounded-2xl bg-butter border border-pine/10 p-4 hover:border-pine/30",
+                      isCoreFeature(feature) ? "cursor-not-allowed opacity-90" : "cursor-pointer",
+                    )}>
+                      <input
+                        type="checkbox"
+                        checked={form.features.includes(feature.key)}
+                        disabled={isCoreFeature(feature)}
+                        onChange={() => toggleFeature(feature.key)}
+                        className="mt-1"
+                      />
                       <span>
                         <strong className="block text-pine">{feature.name}</strong>
-                        <small className="text-pine/55 font-bold">{feature.description}</small>
+                        <small className="text-pine/55 font-bold">
+                          {feature.description}
+                          {isCoreFeature(feature) ? ' Mandatory core feature' : ''}
+                        </small>
                       </span>
                     </label>
                   ))}
@@ -396,6 +651,43 @@ export function TenantManagementView() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {deleteReasonState && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-pine/55 backdrop-blur-sm" onClick={saving ? undefined : () => setDeleteReasonState(null)} />
+          <div className="relative z-10 w-full max-w-md rounded-[2rem] border-2 border-pine/10 bg-butter-light p-6 shadow-2xl">
+            <h2 className="text-2xl font-black text-pine">Move to trash?</h2>
+            <p className="mt-3 text-sm font-bold leading-relaxed text-pine/65">
+              Tell why you are deleting {deleteReasonState.company.name}. This reason will be saved in company history.
+            </p>
+            <textarea
+              value={deleteReasonState.reason}
+              onChange={(event) => setDeleteReasonState({ ...deleteReasonState, reason: event.target.value })}
+              rows={4}
+              placeholder="Enter delete reason"
+              className="mt-4 w-full rounded-xl border-2 border-pine/20 bg-butter px-4 py-3 font-bold text-pine outline-none focus:border-pine"
+            />
+            <div className="mt-6 flex gap-3">
+              <button
+                type="button"
+                onClick={() => setDeleteReasonState(null)}
+                disabled={saving}
+                className="flex-1 rounded-xl border-2 border-pine/20 px-4 py-3 font-bold text-pine transition-colors hover:bg-pine/5 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDeleteCompany}
+                disabled={saving}
+                className="flex-1 rounded-xl bg-[#8a2222] px-4 py-3 font-bold text-butter shadow-md transition-colors hover:bg-[#6f1b1b] disabled:opacity-60"
+              >
+                {saving ? 'Please wait...' : 'Move to trash'}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ReceiptText } from 'lucide-react';
 import { superAdminApi } from '../services/superAdminApi';
+import { TableSkeleton } from '../components/SkeletonLoaders';
 
 export function BillingView() {
   const [billing, setBilling] = useState<any>({ invoices: [], monthlyRevenue: 0 });
@@ -36,12 +37,10 @@ export function BillingView() {
                 <th className="p-6 font-bold text-right">Due Date</th>
               </tr>
             </thead>
+            {loading ? (
+              <TableSkeleton columns={5} />
+            ) : (
             <tbody className="divide-y divide-pine/5">
-              {loading && (
-                <tr>
-                  <td colSpan={5} className="p-8 text-center text-pine/60 font-bold">Loading billing data...</td>
-                </tr>
-              )}
               {!loading && (billing.invoices || []).map((invoice: any) => (
                 <tr key={invoice._id} className="hover:bg-pine/[0.02] transition-colors">
                   <td className="p-6 font-bold text-pine">
@@ -66,6 +65,7 @@ export function BillingView() {
                 </tr>
               )}
             </tbody>
+            )}
           </table>
         </div>
       </div>

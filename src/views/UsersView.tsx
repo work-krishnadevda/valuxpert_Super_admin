@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Users as UsersIcon } from 'lucide-react';
 import type { ApiCompany } from '../types';
 import { superAdminApi } from '../services/superAdminApi';
+import { TableSkeleton } from '../components/SkeletonLoaders';
 
 export function UsersView() {
   const [companies, setCompanies] = useState<ApiCompany[]>([]);
@@ -66,12 +67,10 @@ export function UsersView() {
                 <th className="p-6 font-bold">Status</th>
               </tr>
             </thead>
+            {loading ? (
+              <TableSkeleton columns={3} />
+            ) : (
             <tbody className="divide-y divide-pine/5">
-              {loading && (
-                <tr>
-                  <td colSpan={3} className="p-8 text-center text-pine/60 font-bold">Loading users...</td>
-                </tr>
-              )}
               {!loading && users.map((u) => (
                 <tr key={u._id || u.email} className="hover:bg-pine/[0.02] transition-colors">
                   <td className="p-6">
@@ -94,6 +93,7 @@ export function UsersView() {
                 </tr>
               )}
             </tbody>
+            )}
           </table>
         </div>
       </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ShieldAlert } from 'lucide-react';
 import type { ApiAuditLog } from '../types';
 import { superAdminApi } from '../services/superAdminApi';
+import { TableSkeleton } from '../components/SkeletonLoaders';
 
 export function AuditView() {
   const [logs, setLogs] = useState<ApiAuditLog[]>([]);
@@ -30,12 +31,10 @@ export function AuditView() {
                 <th className="p-6 font-bold text-right">Time</th>
               </tr>
             </thead>
+            {loading ? (
+              <TableSkeleton columns={4} />
+            ) : (
             <tbody className="divide-y divide-pine/5">
-              {loading && (
-                <tr>
-                  <td colSpan={4} className="p-8 text-center text-pine/60 font-bold">Loading audit logs...</td>
-                </tr>
-              )}
               {!loading && logs.map((log) => (
                 <tr key={log._id} className="hover:bg-pine/[0.02] transition-colors">
                   <td className="p-6 font-bold text-pine">
@@ -56,6 +55,7 @@ export function AuditView() {
                 </tr>
               )}
             </tbody>
+            )}
           </table>
         </div>
       </div>

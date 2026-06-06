@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { ApiCompany, ApiFeature } from '../types';
 import { superAdminApi } from '../services/superAdminApi';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { FormSkeleton } from '../components/SkeletonLoaders';
 
 export function FeaturesView() {
   const [companies, setCompanies] = useState<ApiCompany[]>([]);
@@ -9,18 +10,21 @@ export function FeaturesView() {
   const [selectedCompanyId, setSelectedCompanyId] = useState('');
   const [enabledFeatures, setEnabledFeatures] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   useEffect(() => {
-    Promise.all([superAdminApi.companies(), superAdminApi.features()]).then(([companyList, featureList]) => {
-      setCompanies(companyList || []);
-      setFeatures(featureList || []);
-      if (companyList?.length) {
-        setSelectedCompanyId(companyList[0]._id);
-        setEnabledFeatures(companyList[0].features || []);
-      }
-    });
+    Promise.all([superAdminApi.companies(), superAdminApi.features()])
+      .then(([companyList, featureList]) => {
+        setCompanies(companyList || []);
+        setFeatures(featureList || []);
+        if (companyList?.length) {
+          setSelectedCompanyId(companyList[0]._id);
+          setEnabledFeatures(companyList[0].features || []);
+        }
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const selectedCompany = useMemo(
@@ -67,6 +71,10 @@ export function FeaturesView() {
         <p className="text-pine/70 font-medium text-base md:text-lg">Enable or disable modules for each company.</p>
       </div>
 
+      {loading ? (
+        <FormSkeleton />
+      ) : (
+      <>
       <div className="mb-5 bg-butter-light border-2 border-pine/10 rounded-[2rem] p-5">
         <label className="block text-xs font-bold text-pine/60 tracking-wider mb-1.5 uppercase">Select Company</label>
         <select value={selectedCompanyId} onChange={(event) => selectCompany(event.target.value)} className="w-full bg-butter border-2 border-pine/20 rounded-xl py-3 px-4 text-pine font-bold outline-none focus:border-pine">
@@ -99,6 +107,8 @@ export function FeaturesView() {
       <button onClick={saveFeatures} disabled={saving || !selectedCompanyId} className="mt-5 px-6 py-3 bg-pine text-butter font-bold rounded-xl hover:bg-pine-light transition-colors shadow-md cursor-pointer disabled:opacity-60">
         {saving ? 'Saving...' : 'Save Feature Flags'}
       </button>
+      </>
+      )}
 
       <ConfirmDialog
         open={isConfirmOpen}

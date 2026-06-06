@@ -27,9 +27,13 @@ export default function App() {
   const renderView = () => {
     switch (currentView) {
       case 'dashboard':
-        return <DashboardView />;
+        return <DashboardView onNavigate={setCurrentView} />;
       case 'tenants':
-        return <TenantManagementView />;
+        return <TenantManagementView mode="all" />;
+      case 'tenants-suspended':
+        return <TenantManagementView mode="suspended" />;
+      case 'tenants-trash':
+        return <TenantManagementView mode="trash" />;
       case 'subscriptions':
         return <SubscriptionsView />;
       case 'billing':

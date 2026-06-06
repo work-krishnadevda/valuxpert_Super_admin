@@ -60,6 +60,13 @@ export interface ApiCompany {
   };
   created_at?: string;
   updated_at?: string;
+  deleted_at?: string;
+  delete_history?: {
+    reason?: string;
+    actor_email?: string;
+    actor_id?: string;
+    deleted_at?: string;
+  } | null;
 }
 
 export interface ApiPlan {

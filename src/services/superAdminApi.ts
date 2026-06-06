@@ -58,6 +58,8 @@ export const superAdminApi = {
 
   dashboard: () => request<any>('/super-admin/dashboard'),
   companies: () => request<any[]>('/super-admin/companies'),
+  suspendedCompanies: () => request<any[]>('/super-admin/companies/suspended'),
+  trashedCompanies: () => request<any[]>('/super-admin/companies/trash'),
   company: (id: string) => request<any>(`/super-admin/companies/${id}`),
   companyUsage: (id: string) => request<any>(`/super-admin/companies/${id}/usage`),
   companyUsers: (id: string) => request<any>(`/super-admin/companies/${id}/users`),
@@ -86,8 +88,14 @@ export const superAdminApi = {
   activateCompany: (id: string) =>
     request<any>(`/super-admin/companies/${id}/activate`, { method: 'PATCH' }),
 
-  deleteCompany: (id: string) =>
-    request<any>(`/super-admin/companies/${id}`, { method: 'DELETE' }),
+  deleteCompany: (id: string, reason: string) =>
+    request<any>(`/super-admin/companies/${id}`, {
+      method: 'DELETE',
+      body: JSON.stringify({ reason }),
+    }),
+
+  restoreCompany: (id: string) =>
+    request<any>(`/super-admin/companies/${id}/restore`, { method: 'PATCH' }),
 
   updateFeatures: (id: string, features: string[]) =>
     request<any>(`/super-admin/companies/${id}/features`, {

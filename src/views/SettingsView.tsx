@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { ApiCompany } from '../types';
 import { superAdminApi } from '../services/superAdminApi';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { FormSkeleton } from '../components/SkeletonLoaders';
 
 export function SettingsView() {
   const [companies, setCompanies] = useState<ApiCompany[]>([]);
@@ -16,16 +17,19 @@ export function SettingsView() {
   });
   const [message, setMessage] = useState('');
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
 
   useEffect(() => {
-    superAdminApi.companies().then((companyList) => {
-      setCompanies(companyList || []);
-      if (companyList?.length) {
-        setSelectedCompanyId(companyList[0]._id);
-        loadSettings(companyList[0]._id);
-      }
-    });
+    superAdminApi.companies()
+      .then(async (companyList) => {
+        setCompanies(companyList || []);
+        if (companyList?.length) {
+          setSelectedCompanyId(companyList[0]._id);
+          await loadSettings(companyList[0]._id);
+        }
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   const loadSettings = async (companyId: string) => {
@@ -79,6 +83,10 @@ export function SettingsView() {
         <p className="text-pine/70 font-medium text-base md:text-lg">Per-company branding, logo, theme, email, and notifications.</p>
       </div>
 
+      {loading ? (
+        <FormSkeleton />
+      ) : (
+      <>
       <div className="mb-5 bg-butter-light border-2 border-pine/10 rounded-[2rem] p-5">
         <label className="block text-xs font-bold text-pine/60 tracking-wider mb-1.5 uppercase">Select Company</label>
         <select value={selectedCompanyId} onChange={(event) => selectCompany(event.target.value)} className="w-full bg-butter border-2 border-pine/20 rounded-xl py-3 px-4 text-pine font-bold outline-none focus:border-pine">
@@ -134,6 +142,8 @@ export function SettingsView() {
           </div>
         </form>
       </div>
+      </>
+      )}
 
       <ConfirmDialog
         open={isConfirmOpen}

@@ -13,7 +13,7 @@ const fallbackStats: DashboardStats = {
   monthlyRevenue: 0,
 };
 
-export function DashboardView() {
+export function DashboardView({ onNavigate }: { onNavigate?: (view: string) => void }) {
   const [dateFilter, setDateFilter] = useState('Last 30 Days');
   const [companyFilter, setCompanyFilter] = useState('All Companies');
   const [stats, setStats] = useState<DashboardStats>(fallbackStats);
@@ -55,12 +55,12 @@ export function DashboardView() {
   })).filter((item) => item.value > 0);
 
   const statCards = [
-    { label: "Total Companies", value: stats.totalCompanies, icon: Building2, trend: `${companies.length} total` },
-    { label: "Active Companies", value: stats.activeCompanies, icon: Activity, trend: "live" },
-    { label: "Total Employees", value: stats.totalEmployees, icon: Users, trend: "tenant scoped" },
-    { label: "Tenant Admin Accounts", value: stats.totalActiveUsers, icon: UserCircle, trend: "per active company" },
-    { label: "Monthly Revenue", value: `₹${Number(stats.monthlyRevenue || 0).toLocaleString('en-IN')}`, icon: CreditCard, trend: "this month" },
-    { label: "Suspended", value: stats.suspendedCompanies, icon: Building, trend: "review" },
+    { label: "Total Companies", value: stats.totalCompanies, icon: Building2, trend: `${companies.length} total`, target: 'tenants' },
+    { label: "Active Companies", value: stats.activeCompanies, icon: Activity, trend: "live", target: 'tenants' },
+    { label: "Total Employees", value: stats.totalEmployees, icon: Users, trend: "tenant scoped", target: 'users' },
+    { label: "Tenant Admin Accounts", value: stats.totalActiveUsers, icon: UserCircle, trend: "per active company", target: 'users' },
+    { label: "Monthly Revenue", value: `₹${Number(stats.monthlyRevenue || 0).toLocaleString('en-IN')}`, icon: CreditCard, trend: "this month", target: 'billing' },
+    { label: "Suspended", value: stats.suspendedCompanies, icon: Building, trend: "review", target: 'tenants-suspended' },
   ];
 
   return (
@@ -123,7 +123,8 @@ export function DashboardView() {
         {statCards.map((stat, i) => (
           <button 
             key={i} 
-            onClick={() => console.log("Clicked stat: " + stat.label)}
+            onClick={() => onNavigate?.(stat.target)}
+            title={`Open ${stat.label}`}
             className="bg-butter-light border-2 border-pine/10 p-5 md:p-6 rounded-2xl md:rounded-3xl flex items-center justify-between text-left transition-all hover:-translate-y-1 hover:shadow-lg hover:border-pine/20 cursor-pointer w-full group"
           >
             <div>

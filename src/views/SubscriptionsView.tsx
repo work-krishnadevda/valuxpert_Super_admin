@@ -3,6 +3,7 @@ import { Check, Save } from 'lucide-react';
 import type { ApiPlan } from '../types';
 import { superAdminApi } from '../services/superAdminApi';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { CardGridSkeleton } from '../components/SkeletonLoaders';
 
 export function SubscriptionsView() {
   const [plans, setPlans] = useState<ApiPlan[]>([]);
@@ -58,8 +59,8 @@ export function SubscriptionsView() {
         <p className="text-pine/70 font-medium text-base md:text-lg">Manage platform pricing and tenant limits.</p>
       </div>
       {error && <div className="mb-5 rounded-2xl border-2 border-red-200 bg-red-50 px-5 py-4 text-red-700 font-bold">{error}</div>}
-      {loading && <div className="mb-5 rounded-2xl border-2 border-pine/10 bg-butter-light px-5 py-4 text-pine/70 font-bold">Loading plans...</div>}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {loading && <CardGridSkeleton cards={3} />}
         {plans.map(plan => (
           <div key={plan.name} className="bg-butter-light border-2 border-pine/10 p-6 md:p-8 rounded-[2rem] shadow-sm hover:border-pine/20 transition-all flex flex-col group cursor-pointer hover:-translate-y-1">
             <h3 className="text-2xl font-bold text-pine mb-2">{plan.name}</h3>

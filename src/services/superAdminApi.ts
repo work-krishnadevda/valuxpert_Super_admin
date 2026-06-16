@@ -62,7 +62,22 @@ export const superAdminApi = {
   trashedCompanies: () => request<any[]>('/super-admin/companies/trash'),
   company: (id: string) => request<any>(`/super-admin/companies/${id}`),
   companyUsage: (id: string) => request<any>(`/super-admin/companies/${id}/usage`),
-  companyUsers: (id: string) => request<any>(`/super-admin/companies/${id}/users`),
+  companyUsers: (id: string, params: Record<string, string | number | undefined> = {}) => {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== '') query.set(key, String(value));
+    });
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return request<any>(`/super-admin/companies/${id}/users${suffix}`);
+  },
+  tenantUsers: (params: Record<string, string | number | undefined> = {}) => {
+    const query = new URLSearchParams();
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== '') query.set(key, String(value));
+    });
+    const suffix = query.toString() ? `?${query.toString()}` : '';
+    return request<any>(`/super-admin/users${suffix}`);
+  },
   companyAuditLogs: (id: string) => request<any[]>(`/super-admin/companies/${id}/audit-logs`),
   companySettings: (id: string) => request<any>(`/super-admin/companies/${id}/settings`),
   auditLogs: () => request<any[]>('/super-admin/audit-logs'),

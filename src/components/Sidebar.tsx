@@ -12,7 +12,11 @@ interface SidebarProps {
 
 export function Sidebar({ currentView, onNavigate, isOpen, onClose, onLogout }: SidebarProps) {
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({
-    tenants: currentView.startsWith('tenants'),
+    tenants:
+      currentView.startsWith('tenants') ||
+      currentView.startsWith('tenant-detail:') ||
+      currentView.startsWith('tenant-edit:') ||
+      currentView === 'tenant-create',
   });
 
   const navItems = [
@@ -61,7 +65,12 @@ export function Sidebar({ currentView, onNavigate, isOpen, onClose, onLogout }: 
       <nav className="flex-1 space-y-1.5 overflow-y-auto pr-2 custom-scrollbar -mr-2">
         {navItems.map((item) => {
           const isTenantSection = item.id === 'tenants';
-          const isActive = isTenantSection ? currentView.startsWith('tenants') : currentView === item.id;
+          const isActive = isTenantSection
+            ? currentView.startsWith('tenants') ||
+              currentView.startsWith('tenant-detail:') ||
+              currentView.startsWith('tenant-edit:') ||
+              currentView === 'tenant-create'
+            : currentView === item.id;
           const isExpanded = item.children ? expandedItems[item.id] || isActive : false;
           return (
             <div key={item.id}>

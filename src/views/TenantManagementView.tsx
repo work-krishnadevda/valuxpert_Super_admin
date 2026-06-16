@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle2, MoreVertical, Plus, RotateCcw, Search, ShieldAlert, Trash2, X } from 'lucide-react';
-import type { ApiCompany, ApiFeature, ApiPlan } from '../types';
+import { CheckCircle2, Eye, EyeOff, MoreVertical, Plus, RotateCcw, Search, ShieldAlert, Trash2, X } from 'lucide-react';
+import type { ApiAuditLog, ApiCompany, ApiFeature, ApiPlan } from '../types';
 import { superAdminApi } from '../services/superAdminApi';
 import { cn } from '../utils';
 import { ConfirmDialog } from '../components/ConfirmDialog';
@@ -36,6 +36,14 @@ type DeleteReasonState = {
   reason: string;
 };
 
+type CompanyViewDetails = {
+  company: ApiCompany;
+  employeeCount: number;
+  activeUsers: number;
+  inactiveUsers: number;
+  auditLogs: ApiAuditLog[];
+};
+
 function TenantTableSkeleton() {
   return (
     <tbody className="divide-y divide-pine/5">
@@ -61,7 +69,13 @@ function TenantTableSkeleton() {
   );
 }
 
-export function TenantManagementView({ mode = 'all' }: { mode?: TenantViewMode }) {
+export function TenantManagementView({
+  mode = 'all',
+  onNavigate,
+}: {
+  mode?: TenantViewMode;
+  onNavigate?: (view: string) => void;
+}) {
   const [companies, setCompanies] = useState<ApiCompany[]>([]);
   const [plans, setPlans] = useState<ApiPlan[]>([]);
   const [features, setFeatures] = useState<ApiFeature[]>([]);
@@ -76,6 +90,9 @@ export function TenantManagementView({ mode = 'all' }: { mode?: TenantViewMode }
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
   const [deleteReasonState, setDeleteReasonState] = useState<DeleteReasonState | null>(null);
+  const [showAdminPassword, setShowAdminPassword] = useState(false);
+  const [viewDetails, setViewDetails] = useState<CompanyViewDetails | null>(null);
+  const [viewLoading, setViewLoading] = useState(false);
 
   const pageMeta = {
     all: {
@@ -133,15 +150,73 @@ export function TenantManagementView({ mode = 'all' }: { mode?: TenantViewMode }
     );
   }, [companies, search]);
 
+  const featureLabelByKey = useMemo(
+    () => new Map(features.map((feature) => [feature.key, feature.name])),
+    [features],
+  );
+
+  const formatDateTime = (value?: string) =>
+    value ? new Date(value).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '-';
+
+  const formatValue = (value?: string | number | null) => {
+    if (value === undefined || value === null || value === '') return '-';
+    return String(value);
+  };
+
+  const getCredentialChangeMessages = (log: ApiAuditLog) => {
+    const metadata = log.metadata || {};
+    const credentialChanges = metadata.admin_credential_changes || {};
+    const messages: string[] = [];
+
+    Object.entries(credentialChanges).forEach(([field, change]: [string, any]) => {
+      if (field === 'admin_password') {
+        messages.push('Login password changed');
+        return;
+      }
+
+      const label = field
+        .replace('admin_', 'Admin ')
+        .replace('tenant_login_url', 'Tenant software URL')
+        .replace(/_/g, ' ');
+      messages.push(`${label} changed from ${formatValue(change?.from)} to ${formatValue(change?.to)}`);
+    });
+
+    // Older audit records saved the submitted form directly. Keep display safe and never show raw passwords.
+    if (!messages.length && metadata.admin_password) {
+      messages.push('Login password changed');
+    }
+    if (!messages.length && metadata.admin_email) {
+      messages.push(`Admin login email updated to ${metadata.admin_email}`);
+    }
+
+    return messages;
+  };
+
+  const credentialAuditLogs = (viewDetails?.auditLogs || [])
+    .map((log) => ({ log, messages: getCredentialChangeMessages(log) }))
+    .filter((item) => item.messages.length > 0);
+
   const openCreate = () => {
+    if (onNavigate) {
+      onNavigate('tenant-create');
+      return;
+    }
+
     setEditingCompany(null);
     setForm(emptyForm);
     setFormErrors({});
     setError('');
+    setShowAdminPassword(false);
     setIsModalOpen(true);
   };
 
   const openEdit = (company: ApiCompany) => {
+    if (onNavigate) {
+      setActiveDropdownId(null);
+      onNavigate(`tenant-edit:${company._id}`);
+      return;
+    }
+
     setEditingCompany(company);
     setForm({
       name: company.name || '',
@@ -150,7 +225,7 @@ export function TenantManagementView({ mode = 'all' }: { mode?: TenantViewMode }
       admin_name: company.admin_contact?.name || '',
       admin_email: company.admin_contact?.email || '',
       admin_personal_email: company.admin_contact?.personal_email || '',
-      admin_password: '',
+      admin_password: company.admin_contact?.password || '',
       admin_mobile: company.admin_contact?.mobile || '',
       tenant_login_url: company.admin_contact?.login_url || 'http://localhost:3008',
       plan: company.subscription?.plan_key || 'starter',
@@ -160,8 +235,49 @@ export function TenantManagementView({ mode = 'all' }: { mode?: TenantViewMode }
     });
     setFormErrors({});
     setError('');
+    setShowAdminPassword(false);
     setIsModalOpen(true);
     setActiveDropdownId(null);
+  };
+
+  const openView = async (company: ApiCompany) => {
+    if (onNavigate) {
+      setActiveDropdownId(null);
+      onNavigate(`tenant-detail:${company._id}`);
+      return;
+    }
+
+    setActiveDropdownId(null);
+    setViewLoading(true);
+    setError('');
+    setViewDetails({
+      company,
+      employeeCount: 0,
+      activeUsers: 0,
+      inactiveUsers: 0,
+      auditLogs: [],
+    });
+
+    try {
+      const [freshCompany, usersData, auditLogs] = await Promise.all([
+        superAdminApi.company(company._id),
+        superAdminApi.companyUsers(company._id, { page: 1, count: 1 }),
+        superAdminApi.companyAuditLogs(company._id),
+      ]);
+
+      setViewDetails({
+        company: freshCompany || company,
+        employeeCount: usersData?.totalUsers || 0,
+        activeUsers: usersData?.activeUsers || 0,
+        inactiveUsers: usersData?.inactiveUsers || 0,
+        auditLogs: auditLogs || [],
+      });
+    } catch (err: any) {
+      setViewDetails(null);
+      setError(err?.message || 'Unable to load company details.');
+    } finally {
+      setViewLoading(false);
+    }
   };
 
   const getFieldError = (field: string) => formErrors[field];
@@ -476,6 +592,9 @@ export function TenantManagementView({ mode = 'all' }: { mode?: TenantViewMode }
                             </button>
                           ) : (
                             <>
+                              <button onClick={() => openView(company)} className="w-full text-left px-4 py-2.5 hover:bg-pine/10 text-pine font-semibold text-sm cursor-pointer transition-colors flex items-center gap-2">
+                                <Eye size={15} /> View details
+                              </button>
                               {mode === 'all' && (
                                 <button onClick={() => openEdit(company)} className="w-full text-left px-4 py-2.5 hover:bg-pine/10 text-pine font-semibold text-sm cursor-pointer transition-colors">Edit details</button>
                               )}
@@ -511,6 +630,153 @@ export function TenantManagementView({ mode = 'all' }: { mode?: TenantViewMode }
         </div>
 
       </div>
+
+      {viewDetails && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-pine/50 backdrop-blur-sm cursor-pointer" onClick={() => setViewDetails(null)} />
+          <div className="relative bg-butter-light border-2 border-pine/10 rounded-[2rem] p-6 md:p-8 max-w-5xl w-full shadow-2xl z-10 overflow-y-auto max-h-[90vh] custom-scrollbar">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-6">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-pine/45">Company Details</p>
+                <h2 className="text-2xl md:text-3xl font-black text-pine tracking-tight">
+                  {viewDetails.company.display_name || viewDetails.company.name}
+                </h2>
+                <p className="mt-1 font-mono text-sm font-bold text-pine/55">{viewDetails.company.tenant_id}</p>
+              </div>
+              <button onClick={() => setViewDetails(null)} className="self-end sm:self-auto p-2 text-pine/50 hover:bg-pine/10 hover:text-pine rounded-full transition-colors cursor-pointer">
+                <X size={20} />
+              </button>
+            </div>
+
+            {viewLoading ? (
+              <div className="rounded-3xl border-2 border-pine/10 bg-butter p-8 text-center font-black text-pine/60">
+                Loading company details...
+              </div>
+            ) : (
+              <div className="space-y-5">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="rounded-3xl bg-pine text-butter p-5 shadow-sm">
+                    <p className="text-xs font-black uppercase tracking-wider text-butter/60">Employees</p>
+                    <p className="mt-2 text-4xl font-black">{viewDetails.employeeCount}</p>
+                    <p className="mt-1 text-sm font-bold text-butter/70">
+                      Active {viewDetails.activeUsers} / Inactive {viewDetails.inactiveUsers}
+                    </p>
+                  </div>
+                  <div className="rounded-3xl border-2 border-pine/10 bg-butter p-5 shadow-sm">
+                    <p className="text-xs font-black uppercase tracking-wider text-pine/50">Status</p>
+                    <p className="mt-2 text-2xl font-black capitalize text-pine">{viewDetails.company.status}</p>
+                    <p className="mt-1 text-sm font-bold text-pine/60">Created {formatDateTime(viewDetails.company.created_at)}</p>
+                  </div>
+                  <div className="rounded-3xl border-2 border-pine/10 bg-butter p-5 shadow-sm">
+                    <p className="text-xs font-black uppercase tracking-wider text-pine/50">Plan</p>
+                    <p className="mt-2 text-2xl font-black text-pine">{viewDetails.company.subscription?.plan_name || '-'}</p>
+                    <p className="mt-1 text-sm font-bold text-pine/60">
+                      Payment: {viewDetails.company.subscription?.payment_status || '-'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                  <section className="rounded-3xl border-2 border-pine/10 bg-butter p-5">
+                    <h3 className="text-lg font-black text-pine mb-4">Company Information</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                      {[
+                        ['Company Name', viewDetails.company.name],
+                        ['Display Name', viewDetails.company.display_name],
+                        ['Description', viewDetails.company.description],
+                        ['Tenant ID', viewDetails.company.tenant_id],
+                        ['Created At', formatDateTime(viewDetails.company.created_at)],
+                        ['Last Updated', formatDateTime(viewDetails.company.updated_at)],
+                      ].map(([label, value]) => (
+                        <div key={label} className="rounded-2xl bg-butter-light border border-pine/10 px-4 py-3">
+                          <p className="text-xs font-black uppercase tracking-wider text-pine/45">{label}</p>
+                          <p className="mt-1 break-words font-bold text-pine">{formatValue(value)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section className="rounded-3xl border-2 border-pine/10 bg-butter p-5">
+                    <h3 className="text-lg font-black text-pine mb-4">Tenant Admin Information</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                      {[
+                        ['Admin Name', viewDetails.company.admin_contact?.name],
+                        ['Login Email', viewDetails.company.admin_contact?.email],
+                        ['Personal Email', viewDetails.company.admin_contact?.personal_email],
+                        ['Mobile Number', viewDetails.company.admin_contact?.mobile],
+                        ['Tenant Software URL', viewDetails.company.admin_contact?.login_url],
+                        ['Current Login Password', viewDetails.company.admin_contact?.password],
+                      ].map(([label, value]) => (
+                        <div key={label} className="rounded-2xl bg-butter-light border border-pine/10 px-4 py-3">
+                          <p className="text-xs font-black uppercase tracking-wider text-pine/45">{label}</p>
+                          <p className="mt-1 break-words font-bold text-pine">{formatValue(value)}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                </div>
+
+                <section className="rounded-3xl border-2 border-pine/10 bg-butter p-5">
+                  <h3 className="text-lg font-black text-pine mb-4">Subscription, Limits & Features</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+                    {[
+                      ['Max Users', viewDetails.company.limits?.max_users],
+                      ['Max Employees', viewDetails.company.limits?.max_employees],
+                      ['Storage MB', viewDetails.company.limits?.storage_mb],
+                      ['API Calls / Month', viewDetails.company.limits?.api_calls_per_month],
+                      ['Subscription Status', viewDetails.company.subscription?.status],
+                      ['Renewal Date', formatDateTime(viewDetails.company.subscription?.renewal_date)],
+                    ].map(([label, value]) => (
+                      <div key={label} className="rounded-2xl bg-butter-light border border-pine/10 px-4 py-3">
+                        <p className="text-xs font-black uppercase tracking-wider text-pine/45">{label}</p>
+                        <p className="mt-1 break-words font-bold text-pine">{formatValue(value)}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {(viewDetails.company.features || []).map((featureKey) => (
+                      <span key={featureKey} className="rounded-full bg-pine/10 px-3 py-1 text-xs font-black text-pine">
+                        {featureLabelByKey.get(featureKey) || featureKey}
+                      </span>
+                    ))}
+                    {!viewDetails.company.features?.length && (
+                      <span className="text-sm font-bold text-pine/50">No features assigned.</span>
+                    )}
+                  </div>
+                </section>
+
+                <section className="rounded-3xl border-2 border-pine/10 bg-butter p-5">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+                    <h3 className="text-lg font-black text-pine">Admin Email / Password Change History</h3>
+                    <p className="text-xs font-bold text-pine/50">Raw passwords are never shown in audit history.</p>
+                  </div>
+                  {credentialAuditLogs.length ? (
+                    <div className="space-y-3">
+                      {credentialAuditLogs.map(({ log, messages }) => (
+                        <div key={log._id} className="rounded-2xl border border-pine/10 bg-butter-light px-4 py-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
+                            <p className="font-black text-pine">{formatDateTime(log.created_at)}</p>
+                            <p className="text-xs font-bold text-pine/50">Updated by {log.actor_email || 'system'}</p>
+                          </div>
+                          <ul className="mt-2 space-y-1">
+                            {messages.map((message) => (
+                              <li key={message} className="text-sm font-bold text-pine/75">{message}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="rounded-2xl bg-butter-light border border-pine/10 px-4 py-4 text-sm font-bold text-pine/55">
+                      No admin email or password update history found for this company.
+                    </div>
+                  )}
+                </section>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -577,7 +843,7 @@ export function TenantManagementView({ mode = 'all' }: { mode?: TenantViewMode }
                   {[
                     ['admin_name', 'Admin Name', 'text', true],
                     ['admin_email', 'User Login / Email Address', 'email', true],
-                    ['admin_password', 'Login Password', 'text', true],
+                    ['admin_password', 'Login Password', 'password', true],
                     ['admin_personal_email', 'Personal Email', 'email', true],
                     ['admin_mobile', 'Mobile Number', 'tel', true],
                     ['tenant_login_url', 'Tenant Software URL', 'url', true],
@@ -586,24 +852,37 @@ export function TenantManagementView({ mode = 'all' }: { mode?: TenantViewMode }
                       <label className="block text-xs font-bold text-pine/60 tracking-wider mb-1.5 uppercase">
                         {required ? requiredLabel(String(label)) : label}
                       </label>
-                      <input
-                        required={Boolean(required)}
-                        type={String(type)}
-                        value={(form as any)[key as string]}
-                        onChange={(event) =>
-                          key === 'admin_mobile'
-                            ? updateMobile(event.target.value)
-                            : updateField(key as string, event.target.value)
-                        }
-                        inputMode={key === 'admin_mobile' ? 'numeric' : undefined}
-                        maxLength={key === 'admin_mobile' ? 10 : undefined}
-                        pattern={key === 'admin_mobile' ? '\\d{10}' : undefined}
-                        placeholder={key === 'tenant_login_url' ? 'Example: http://localhost:3008/login' : undefined}
-                        className={cn(
-                          "w-full bg-butter border-2 rounded-xl py-3 px-4 text-pine font-medium outline-none focus:border-pine transition-colors shadow-sm",
-                          getFieldError(key as string) ? "border-red-400" : "border-pine/20",
+                      <div className="relative">
+                        <input
+                          required={Boolean(required)}
+                          type={key === 'admin_password' ? (showAdminPassword ? 'text' : 'password') : String(type)}
+                          value={(form as any)[key as string]}
+                          onChange={(event) =>
+                            key === 'admin_mobile'
+                              ? updateMobile(event.target.value)
+                              : updateField(key as string, event.target.value)
+                          }
+                          inputMode={key === 'admin_mobile' ? 'numeric' : undefined}
+                          maxLength={key === 'admin_mobile' ? 10 : undefined}
+                          pattern={key === 'admin_mobile' ? '\\d{10}' : undefined}
+                          placeholder={key === 'tenant_login_url' ? 'Example: http://localhost:3008/login' : undefined}
+                          className={cn(
+                            "w-full bg-butter border-2 rounded-xl py-3 px-4 text-pine font-medium outline-none focus:border-pine transition-colors shadow-sm",
+                            key === 'admin_password' ? "pr-12" : "",
+                            getFieldError(key as string) ? "border-red-400" : "border-pine/20",
+                          )}
+                        />
+                        {key === 'admin_password' && (
+                          <button
+                            type="button"
+                            onClick={() => setShowAdminPassword((current) => !current)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-pine/55 hover:bg-pine/10 hover:text-pine"
+                            aria-label={showAdminPassword ? 'Hide password' : 'Show password'}
+                          >
+                            {showAdminPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                          </button>
                         )}
-                      />
+                      </div>
                       {getFieldError(key as string) && (
                         <p className="mt-1 text-xs font-bold text-red-600">{getFieldError(key as string)}</p>
                       )}

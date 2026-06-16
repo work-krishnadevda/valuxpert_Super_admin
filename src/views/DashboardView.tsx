@@ -58,7 +58,7 @@ export function DashboardView({ onNavigate }: { onNavigate?: (view: string) => v
     { label: "Total Companies", value: stats.totalCompanies, icon: Building2, trend: `${companies.length} total`, target: 'tenants' },
     { label: "Active Companies", value: stats.activeCompanies, icon: Activity, trend: "live", target: 'tenants' },
     { label: "Total Employees", value: stats.totalEmployees, icon: Users, trend: "tenant scoped", target: 'users' },
-    { label: "Tenant Admin Accounts", value: stats.totalActiveUsers, icon: UserCircle, trend: "per active company", target: 'users' },
+    { label: "Tenant User Accounts", value: stats.totalActiveUsers, icon: UserCircle, trend: "unique active users", target: 'users' },
     { label: "Monthly Revenue", value: `₹${Number(stats.monthlyRevenue || 0).toLocaleString('en-IN')}`, icon: CreditCard, trend: "this month", target: 'billing' },
     { label: "Suspended", value: stats.suspendedCompanies, icon: Building, trend: "review", target: 'tenants-suspended' },
   ];

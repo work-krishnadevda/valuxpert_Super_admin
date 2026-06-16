@@ -41,6 +41,7 @@ export interface ApiCompany {
     personal_email?: string;
     mobile?: string;
     login_url?: string;
+    password?: string;
     user_id?: string;
   };
   features?: string[];
@@ -101,5 +102,6 @@ export interface ApiAuditLog {
   entity_id?: string;
   actor_email?: string;
   description?: string;
+  metadata?: Record<string, any>;
   created_at?: string;
 }

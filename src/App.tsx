@@ -13,6 +13,9 @@ import { LoginView } from './views/LoginView';
 import { authStore } from './services/superAdminApi';
 import { BillingView } from './views/BillingView';
 import { ConfirmDialog } from './components/ConfirmDialog';
+import { CompanyDetailView } from './views/CompanyDetailView';
+import { CompanyCreateView } from './views/CompanyCreateView';
+import { CompanyEditView } from './views/CompanyEditView';
 
 export default function App() {
   const [currentView, setCurrentView] = useState('dashboard');
@@ -25,15 +28,29 @@ export default function App() {
   }
 
   const renderView = () => {
+    if (currentView.startsWith('tenant-detail:')) {
+      const companyId = currentView.split(':')[1];
+      return <CompanyDetailView companyId={companyId} onBack={() => setCurrentView('tenants')} />;
+    }
+
+    if (currentView.startsWith('tenant-edit:')) {
+      const companyId = currentView.split(':')[1];
+      return <CompanyEditView companyId={companyId} onBack={() => setCurrentView('tenants')} />;
+    }
+
+    if (currentView === 'tenant-create') {
+      return <CompanyCreateView onBack={() => setCurrentView('tenants')} />;
+    }
+
     switch (currentView) {
       case 'dashboard':
         return <DashboardView onNavigate={setCurrentView} />;
       case 'tenants':
-        return <TenantManagementView mode="all" />;
+        return <TenantManagementView mode="all" onNavigate={setCurrentView} />;
       case 'tenants-suspended':
-        return <TenantManagementView mode="suspended" />;
+        return <TenantManagementView mode="suspended" onNavigate={setCurrentView} />;
       case 'tenants-trash':
-        return <TenantManagementView mode="trash" />;
+        return <TenantManagementView mode="trash" onNavigate={setCurrentView} />;
       case 'subscriptions':
         return <SubscriptionsView />;
       case 'billing':

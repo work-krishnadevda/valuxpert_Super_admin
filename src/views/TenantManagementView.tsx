@@ -473,6 +473,20 @@ export function TenantManagementView({
     });
   };
 
+  const permanentlyDeleteCompany = (company: ApiCompany) => {
+    setConfirmState({
+      title: 'Delete permanently?',
+      message: `This will permanently delete ${company.name} and all related tenant data. This action cannot be undone.`,
+      confirmLabel: 'Delete permanently',
+      danger: true,
+      onConfirm: async () => {
+        await superAdminApi.permanentlyDeleteCompany(company._id);
+        setActiveDropdownId(null);
+        await loadData();
+      },
+    });
+  };
+
   const confirmAction = async () => {
     if (!confirmState) return;
     try {
@@ -587,9 +601,15 @@ export function TenantManagementView({
                       {activeDropdownId === company._id && (
                         <div className="absolute right-6 top-14 mt-1 w-52 bg-butter border-2 border-pine/10 rounded-xl shadow-lg z-20 py-2 flex flex-col overflow-hidden">
                           {mode === 'trash' ? (
-                            <button onClick={() => restoreCompany(company)} className="w-full text-left px-4 py-2.5 hover:bg-pine/10 text-pine font-semibold text-sm cursor-pointer transition-colors flex items-center gap-2">
-                              <RotateCcw size={15} /> Restore
-                            </button>
+                            <>
+                              <button onClick={() => restoreCompany(company)} className="w-full text-left px-4 py-2.5 hover:bg-pine/10 text-pine font-semibold text-sm cursor-pointer transition-colors flex items-center gap-2">
+                                <RotateCcw size={15} /> Restore
+                              </button>
+                              <div className="h-px bg-pine/10 my-1 w-full" />
+                              <button onClick={() => permanentlyDeleteCompany(company)} className="w-full text-left px-4 py-2.5 hover:bg-[#ffe0e0] text-[#8a2222] font-semibold text-sm cursor-pointer transition-colors flex items-center gap-2">
+                                <Trash2 size={15} /> Delete permanently
+                              </button>
+                            </>
                           ) : (
                             <>
                               <button onClick={() => openView(company)} className="w-full text-left px-4 py-2.5 hover:bg-pine/10 text-pine font-semibold text-sm cursor-pointer transition-colors flex items-center gap-2">

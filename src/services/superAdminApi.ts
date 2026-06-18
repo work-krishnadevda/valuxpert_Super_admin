@@ -62,6 +62,8 @@ export const superAdminApi = {
   trashedCompanies: () => request<any[]>('/super-admin/companies/trash'),
   company: (id: string) => request<any>(`/super-admin/companies/${id}`),
   companyUsage: (id: string) => request<any>(`/super-admin/companies/${id}/usage`),
+  companyBilling: (id: string) => request<any>(`/super-admin/companies/${id}/billing`),
+  companyPayments: (id: string) => request<any[]>(`/super-admin/companies/${id}/payments`),
   companyUsers: (id: string, params: Record<string, string | number | undefined> = {}) => {
     const query = new URLSearchParams();
     Object.entries(params).forEach(([key, value]) => {
@@ -112,6 +114,9 @@ export const superAdminApi = {
   restoreCompany: (id: string) =>
     request<any>(`/super-admin/companies/${id}/restore`, { method: 'PATCH' }),
 
+  permanentlyDeleteCompany: (id: string) =>
+    request<any>(`/super-admin/companies/${id}/permanent`, { method: 'DELETE' }),
+
   updateFeatures: (id: string, features: string[]) =>
     request<any>(`/super-admin/companies/${id}/features`, {
       method: 'PATCH',
@@ -121,6 +126,18 @@ export const superAdminApi = {
   updateSubscription: (id: string, payload: any) =>
     request<any>(`/super-admin/companies/${id}/subscription`, {
       method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+
+  updateCompanyBilling: (id: string, payload: any) =>
+    request<any>(`/super-admin/companies/${id}/billing`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+
+  addCompanyPayment: (id: string, payload: any) =>
+    request<any>(`/super-admin/companies/${id}/payments`, {
+      method: 'POST',
       body: JSON.stringify(payload),
     }),
 

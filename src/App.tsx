@@ -16,6 +16,7 @@ import { ConfirmDialog } from './components/ConfirmDialog';
 import { CompanyDetailView } from './views/CompanyDetailView';
 import { CompanyCreateView } from './views/CompanyCreateView';
 import { CompanyEditView } from './views/CompanyEditView';
+import { CompanyPaymentView } from './views/CompanyPaymentView';
 
 export default function App() {
   const [currentView, setCurrentView] = useState('dashboard');
@@ -30,7 +31,12 @@ export default function App() {
   const renderView = () => {
     if (currentView.startsWith('tenant-detail:')) {
       const companyId = currentView.split(':')[1];
-      return <CompanyDetailView companyId={companyId} onBack={() => setCurrentView('tenants')} />;
+      return <CompanyDetailView companyId={companyId} onBack={() => setCurrentView('tenants')} onNavigate={setCurrentView} />;
+    }
+
+    if (currentView.startsWith('tenant-payment:')) {
+      const companyId = currentView.split(':')[1];
+      return <CompanyPaymentView companyId={companyId} onBack={() => setCurrentView(`tenant-detail:${companyId}`)} />;
     }
 
     if (currentView.startsWith('tenant-edit:')) {

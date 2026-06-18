@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { ArrowLeft, Building2, ShieldCheck, Users } from 'lucide-react';
-import type { ApiAuditLog, ApiCompany, ApiFeature } from '../types';
+import { ArrowLeft, Building2, CreditCard, ShieldCheck, Users } from 'lucide-react';
+import type { ApiAuditLog, ApiCompany, ApiFeature, CompanyBillingSummary } from '../types';
 import { superAdminApi } from '../services/superAdminApi';
 
 type CompanyDetailViewProps = {
   companyId: string;
   onBack: () => void;
+  onNavigate?: (view: string) => void;
 };
 
 type CompanyViewDetails = {
@@ -15,9 +16,10 @@ type CompanyViewDetails = {
   activeUsers: number;
   inactiveUsers: number;
   auditLogs: ApiAuditLog[];
+  billing: CompanyBillingSummary | null;
 };
 
-export function CompanyDetailView({ companyId, onBack }: CompanyDetailViewProps) {
+export function CompanyDetailView({ companyId, onBack, onNavigate }: CompanyDetailViewProps) {
   const [details, setDetails] = useState<CompanyViewDetails | null>(null);
   const [features, setFeatures] = useState<ApiFeature[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,11 +46,12 @@ export function CompanyDetailView({ companyId, onBack }: CompanyDetailViewProps)
     setLoading(true);
     setError('');
     try {
-      const [company, usersData, auditLogs, featureList] = await Promise.all([
+      const [company, usersData, auditLogs, featureList, billing] = await Promise.all([
         superAdminApi.company(companyId),
         superAdminApi.companyUsers(companyId, { page: 1, count: 1 }),
         superAdminApi.companyAuditLogs(companyId),
         superAdminApi.features(),
+        superAdminApi.companyBilling(companyId),
       ]);
 
       setDetails({
@@ -57,6 +60,7 @@ export function CompanyDetailView({ companyId, onBack }: CompanyDetailViewProps)
         activeUsers: usersData?.activeUsers || 0,
         inactiveUsers: usersData?.inactiveUsers || 0,
         auditLogs: auditLogs || [],
+        billing,
       });
       setFeatures(featureList || []);
     } catch (err: any) {
@@ -88,6 +92,7 @@ export function CompanyDetailView({ companyId, onBack }: CompanyDetailViewProps)
   }
 
   const { company } = details;
+  const billing = details.billing;
 
   return (
     <div className="w-full space-y-6">
@@ -111,6 +116,12 @@ export function CompanyDetailView({ companyId, onBack }: CompanyDetailViewProps)
         <SummaryCard icon={<Users size={22} />} label="Employees" value={details.employeeCount} helper={`Active ${details.activeUsers} / Inactive ${details.inactiveUsers}`} dark />
         <SummaryCard icon={<ShieldCheck size={22} />} label="Plan" value={company.subscription?.plan_name || '-'} helper={`Payment: ${company.subscription?.payment_status || '-'}`} />
         <SummaryCard icon={<Building2 size={22} />} label="Created" value={formatDateTime(company.created_at)} helper={`Updated: ${formatDateTime(company.updated_at)}`} />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <SummaryCard icon={<CreditCard size={22} />} label="Total Amount" value={formatCurrency(billing?.totalAmount || 0)} helper={`${billing?.employeeCount || 0} employees x ${formatCurrency(billing?.pricePerEmployee || 0)} / month`} dark />
+        <SummaryCard icon={<CreditCard size={22} />} label="Received Amount" value={formatCurrency(billing?.paidAmount || 0)} helper="total received" />
+        <SummaryCard icon={<CreditCard size={22} />} label="Pending Amount" value={formatCurrency(billing?.pendingAmount || 0)} helper={`${billing?.billingDays || 0} billing days`} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -161,6 +172,29 @@ export function CompanyDetailView({ companyId, onBack }: CompanyDetailViewProps)
             </span>
           ))}
           {!company.features?.length && <span className="text-sm font-bold text-pine/50">No features assigned.</span>}
+        </div>
+      </section>
+
+      <section className="rounded-3xl border-2 border-pine/10 bg-butter-light p-5 md:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-xl font-black text-pine">Company Payment</h2>
+            <p className="mt-1 text-sm font-bold text-pine/55">
+              View full transaction history and add payments on the payment page.
+            </p>
+          </div>
+          <button
+            onClick={() => onNavigate?.(`tenant-payment:${companyId}`)}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-pine px-5 py-3 text-sm font-black text-butter hover:bg-pine/90"
+          >
+            <CreditCard size={18} /> Open Payment Page
+          </button>
+        </div>
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-4 gap-3 text-sm">
+          <InfoTile label="Price / Employee" value={formatCurrency(billing?.pricePerEmployee || 0)} />
+          <InfoTile label="Billing Days" value={formatValue(billing?.billingDays)} />
+          <InfoTile label="Total" value={formatCurrency(billing?.totalAmount || 0)} />
+          <InfoTile label="Pending" value={formatCurrency(billing?.pendingAmount || 0)} />
         </div>
       </section>
 
@@ -249,6 +283,10 @@ function formatDateTime(value?: string) {
 function formatValue(value?: string | number | null) {
   if (value === undefined || value === null || value === '') return '-';
   return String(value);
+}
+
+function formatCurrency(value?: string | number | null) {
+  return `₹${Number(value || 0).toLocaleString('en-IN')}`;
 }
 
 function getCredentialChangeMessages(log: ApiAuditLog) {

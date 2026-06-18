@@ -15,6 +15,7 @@ export function Sidebar({ currentView, onNavigate, isOpen, onClose, onLogout }: 
     tenants:
       currentView.startsWith('tenants') ||
       currentView.startsWith('tenant-detail:') ||
+      currentView.startsWith('tenant-payment:') ||
       currentView.startsWith('tenant-edit:') ||
       currentView === 'tenant-create',
   });
@@ -68,6 +69,7 @@ export function Sidebar({ currentView, onNavigate, isOpen, onClose, onLogout }: 
           const isActive = isTenantSection
             ? currentView.startsWith('tenants') ||
               currentView.startsWith('tenant-detail:') ||
+              currentView.startsWith('tenant-payment:') ||
               currentView.startsWith('tenant-edit:') ||
               currentView === 'tenant-create'
             : currentView === item.id;

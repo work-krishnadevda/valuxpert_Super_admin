@@ -86,7 +86,7 @@ export function UsersView() {
     const roleLabel = selectedRole ? selectedRole.display_name || selectedRole.name : 'all roles';
     const branchLabel = selectedBranch ? `${selectedBranch.name} branch` : 'all branches';
     const statusLabel = selectedStatus ? `${selectedStatus} ` : '';
-    return `${companyLabel} ${branchLabel} mein ${roleLabel} ke ${statusLabel}${summary.totalUsers} staff hain`;
+    return `There are only ${summary.totalUsers} ${statusLabel} staff members in the ${roleLabel} role at ${companyLabel} ${branchLabel}.`;
   }, [selectedBranch, selectedCompany, selectedRole, selectedStatus, summary.totalUsers]);
 
   const loadUsers = async () => {
@@ -222,12 +222,12 @@ export function UsersView() {
             </select>
           </div>
         </div>
-        {!selectedCompanyId && (
+        {/* {!selectedCompanyId && (
           <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-900">
             Abhi <span className="underline">All Companies</span> mode chal raha hai — isliye Karmyug aur doosri companies ka staff bhi dikh sakta hai.
             Sirf Bohra Associates dekhne ke liye upar se company select karein.
           </div>
-        )}
+        )} */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-pine/[0.04] rounded-2xl px-4 py-3">
           <p className="text-pine font-extrabold">{resultSentence}</p>
           <div className="text-sm font-bold text-pine/60">

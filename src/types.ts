@@ -26,6 +26,9 @@ export interface DashboardStats {
   totalEmployees: number;
   totalActiveUsers: number;
   monthlyRevenue: number;
+  totalBillingAmount?: number;
+  totalPaymentReceived?: number;
+  totalPaymentPending?: number;
 }
 
 export interface ApiCompany {
@@ -58,6 +61,11 @@ export interface ApiCompany {
     max_employees?: number;
     storage_mb?: number;
     api_calls_per_month?: number;
+  };
+  billing?: {
+    price_per_employee?: number;
+    start_date?: string;
+    end_date?: string;
   };
   created_at?: string;
   updated_at?: string;
@@ -103,5 +111,28 @@ export interface ApiAuditLog {
   actor_email?: string;
   description?: string;
   metadata?: Record<string, any>;
+  created_at?: string;
+}
+
+export interface CompanyBillingSummary {
+  pricePerEmployee: number;
+  employeeCount: number;
+  startDate?: string;
+  endDate?: string;
+  billingDays: number;
+  totalAmount: number;
+  paidAmount: number;
+  pendingAmount: number;
+  overpaidAmount: number;
+}
+
+export interface CompanyPayment {
+  _id: string;
+  amount: number;
+  payment_date?: string;
+  payment_mode?: string;
+  note?: string;
+  received_by_name?: string;
+  received_by_email?: string;
   created_at?: string;
 }

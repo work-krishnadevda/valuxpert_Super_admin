@@ -11,6 +11,9 @@ const fallbackStats: DashboardStats = {
   totalEmployees: 0,
   totalActiveUsers: 0,
   monthlyRevenue: 0,
+  totalBillingAmount: 0,
+  totalPaymentReceived: 0,
+  totalPaymentPending: 0,
 };
 
 export function DashboardView({ onNavigate }: { onNavigate?: (view: string) => void }) {
@@ -60,6 +63,9 @@ export function DashboardView({ onNavigate }: { onNavigate?: (view: string) => v
     { label: "Total Employees", value: stats.totalEmployees, icon: Users, trend: "tenant scoped", target: 'users' },
     { label: "Tenant User Accounts", value: stats.totalActiveUsers, icon: UserCircle, trend: "unique active users", target: 'users' },
     { label: "Monthly Revenue", value: `₹${Number(stats.monthlyRevenue || 0).toLocaleString('en-IN')}`, icon: CreditCard, trend: "this month", target: 'billing' },
+    { label: "Total Amount", value: `₹${Number(stats.totalBillingAmount || 0).toLocaleString('en-IN')}`, icon: CreditCard, trend: "billed", target: 'billing' },
+    { label: "Received Amount", value: `₹${Number(stats.totalPaymentReceived || 0).toLocaleString('en-IN')}`, icon: CreditCard, trend: "paid", target: 'billing' },
+    { label: "Pending Amount", value: `₹${Number(stats.totalPaymentPending || 0).toLocaleString('en-IN')}`, icon: CreditCard, trend: "due", target: 'billing' },
     { label: "Suspended", value: stats.suspendedCompanies, icon: Building, trend: "review", target: 'tenants-suspended' },
   ];
 
